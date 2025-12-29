@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-13, macos-14]
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
     - name: Checkout code
@@ -39,8 +39,8 @@ jobs:
       run: |
         pyinstaller --onefile main.py
 
-    # Временный шаг: показать что получилось (для отладки)
-    - name: List dist folder (Linux/Mac)
+    # Проверка созданных файлов (для отладки)
+    - name: List dist folder (Unix)
       if: runner.os != 'Windows'
       run: ls -l dist/
     
@@ -48,7 +48,7 @@ jobs:
       if: runner.os == 'Windows'
       run: dir dist\
 
-    # Сохраняем артефакты (скомпилированные файлы), чтобы использовать при деплое
+    # Сохраняем артефакты (скомпилированные файлы)
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
@@ -60,7 +60,8 @@ jobs:
     name: Deploy to Server
     needs: build-and-test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' # Деплоим только из ветки main
+    # Деплоим только из основной ветки
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
 
     steps:
     # Скачиваем ТОЛЬКО Linux версию (так как сервер на Linux)
@@ -77,17 +78,13 @@ jobs:
         username: ${{ secrets.SSH_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
-          # Останавливаем старую версию если есть (если бы это был сервис)
           echo "Deploying update..."
-          
           # Убедимся, что папка существует
           mkdir -p ~/my_app
-          
           # Удаляем старый файл
           rm -f ~/my_app/main
           
     - name: Copy file via SCP
-      # Используем scp для копирования файла
       uses: appleboy/scp-action@master
       with:
         host: ${{ secrets.SSH_HOST }}
